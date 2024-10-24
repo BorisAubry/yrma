@@ -1,0 +1,63 @@
+Horizontal{
+    padding: 1;
+}
+
+Center{
+    padding: 1;
+    align: center top
+}
+
+Vertical {
+    width: 95%;
+    height: 95%;
+    align: center top;
+}
+
+VideoMngt{
+    padding: 1;
+    align: center top;
+}
+
+ChannelMngt{
+    padding: 1;
+    align: center top;
+}
+
+Input {
+    border: solid $accent;
+    width: 100%;
+}
+
+OptionList {
+    padding: 1;
+    border: solid $accent;
+    width: 1fr;
+}
+
+Label {
+    padding: 1;
+    border: solid $accent;
+    width: 100%;
+}
+
+#channels{
+    width: 20%;
+}
+
+SelectionList {
+    padding: 1;
+    border: solid $accent;
+    width: 1fr;
+}
+
+#chan_videos{ 
+    width: 80%;
+}
+
+.active{
+    display:block
+}
+
+.inactive{
+    display:none
+}
