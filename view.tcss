@@ -4,7 +4,7 @@ Horizontal{
 
 Center{
     padding: 1;
-    align: center top
+    align: center top;
 }
 
 Vertical {

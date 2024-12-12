@@ -153,6 +153,7 @@ class DataHandler:
                     ydl.download(url)
                 except:
                     print("pb yt_dlp download or merging")
+        self.set_videos_pool(video_id_list, False)
 
     def is_new_path_valid(self, new_path: str) -> bool:
         return os.path.exists(new_path)

@@ -1,7 +1,3 @@
-import keyboard
-
-# keyboard.press("f11")
-
 ### APP ###
 from view import MainApp
 

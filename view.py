@@ -1,5 +1,7 @@
+from threading import Thread
 from textual import on
 from textual.app import App
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, Center
 from textual.widgets.selection_list import Selection
 from textual.widgets.option_list import Option
@@ -13,6 +15,8 @@ from textual.widgets import (
     Label,
 )
 from data import DataHandler
+import time
+import pyperclip
 
 
 class VideoMngt(Static):
@@ -53,11 +57,14 @@ class VideoMngt(Static):
 
     def compose(self):
         with Center():
+            yield Label()
             yield SelectionList[str]()
 
     def on_mount(self) -> None:
         sl = self.query_one(SelectionList)
         sl.border_title = "Available for download video list"
+        lb = self.query_one(Label)
+        lb.update("Status : Wait for user command !")
         self.create_video_list()
 
     def activation(self):
@@ -91,24 +98,63 @@ class VideoMngt(Static):
             sl.select_all()
         return sl.selected
 
-    def action_update(self):
-        self.handler.get_new_videos_to_pool()
+    def check_if_thread_is_alive(
+        self,
+        thread: Thread,
+        completion_func=None,
+    ):
+        done = False
+        while not done:
+            if thread.is_alive():
+                time.sleep(1)
+            else:
+                done = True
+                if completion_func != None:
+                    completion_func()
+
+    def update_finish(self):
+        self.query_one(Label).update("Status : Available video list updated !")
         self.create_video_list()
+        self.notify("List updated !", timeout=5)
+
+    def action_update(self):
+        self.query_one(Label).update("Status : Updating ...")
+        worker_thread = Thread(
+            target=self.handler.get_new_videos_to_pool,
+        )
+        watcher_thread = Thread(
+            target=self.check_if_thread_is_alive,
+            args=(worker_thread, self.update_finish),
+        )
+        worker_thread.start()
+        watcher_thread.start()
 
     def action_sort_by_length(self):
         self.create_video_list(sort_by_len=True)
 
-    def action_download_all(self):
-        self.handler.download_video_from_list(self.get_selection_list(all=True))
-        self.handler.set_videos_pool(self.get_selection_list(all=True), in_pool=False)
+    def default_download_finish(self):
         self.create_video_list()
-        self.notify("All videos downloaded !", timeout=5)
+        self.query_one(Label).update("Status : Videos Downloaded !")
+
+    def default_download(self, all: bool):
+        self.query_one(Label).update("Status : Downloading ...")
+        selection = self.get_selection_list(all=all)
+        worker_thread = Thread(
+            target=self.handler.download_video_from_list,
+            args=(selection,),
+        )
+        watcher_thread = Thread(
+            target=self.check_if_thread_is_alive,
+            args=(worker_thread, self.default_download_finish),
+        )
+        worker_thread.start()
+        watcher_thread.start()
+
+    def action_download_all(self):
+        self.default_download(True)
 
     def action_download_selected(self):
-        self.handler.download_video_from_list(self.get_selection_list(all=False))
-        self.handler.set_videos_pool(self.get_selection_list(all=False), in_pool=False)
-        self.create_video_list()
-        self.notify("Selected videos downloaded ! ", timeout=5)
+        self.default_download(False)
 
     def action_discard_all(self):
         self.handler.set_videos_pool(self.get_selection_list(all=True), in_pool=False)
@@ -172,6 +218,15 @@ class ChannelMngt(Static):
         sl.border_title = "Selected channel video list"
         lb = self.query_one(Label)
         lb.update("Actual download path is : " + self.handler.get_dl_path())
+        u_input = self.query_one(Input)
+        u_input.BINDINGS.append(
+            Binding(
+                key="ctrl+v",
+                action="paste",
+                description="Paste Clipboard",
+                show=False,
+            )
+        )
 
     def activation(self):
         self.remove_class("inactive")
@@ -180,10 +235,8 @@ class ChannelMngt(Static):
         self.query_one(OptionList).focus()
 
     def desactivation(self):
-        sl = self.query_one(SelectionList)
-        sl.clear_options()
-        ol = self.query_one(OptionList)
-        ol.clear_options()
+        self.query_one(SelectionList).clear_options()
+        self.query_one(OptionList).clear_options()
         self.remove_class("active")
         self.add_class("inactive")
 
@@ -231,6 +284,9 @@ class ChannelMngt(Static):
         u_input.placeholder = "Paste your new path"
         u_input.add_class("path")
         u_input.focus()
+
+    def action_paste(self):
+        self.query_one(Input).value = str(pyperclip.paste())
 
     def action_goto_add_channel(self):
         self.query_one(Input).focus()
@@ -310,6 +366,9 @@ class MainApp(App):
             handler=self.handler,
         )
         yield Footer()
+
+    def on_mount(self):
+        self.title = "YOUTUBE RSS MANAGER APP ( YRMA )"
 
     def action_exit_app(self):
         self.app.exit()
